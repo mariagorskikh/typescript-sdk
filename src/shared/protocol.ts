@@ -401,6 +401,14 @@ export abstract class Protocol<
               const timestamp = Math.floor(Date.now() / 1000);
               const request_hash = hashPayload(request);
               const response_hash = hashPayload(result);
+              if (typeof process !== 'undefined' && process.env.DEBUG_COUPON) {
+                const reqJson = JSON.stringify(request);
+                const resJson = JSON.stringify(result);
+                console.log('[DEBUG] Server-side request JSON for hash:', reqJson);
+                process.stdout.write(' [DEBUG] Server-side request hash: ' + request_hash + '\n');
+                console.log('[DEBUG] Server-side response JSON for hash:', resJson);
+                process.stdout.write(' [DEBUG] Server-side response hash: ' + response_hash + '\n');
+              }
               const couponPayload = {
                 interaction_id,
                 caller_id,
@@ -414,6 +422,10 @@ export abstract class Protocol<
               // Attach to _meta.interaction_coupon
               if (!result._meta) result._meta = {};
               result._meta.interaction_coupon = coupon;
+              // Debug log
+              if (typeof console !== 'undefined' && console.log) {
+                console.log('[DEBUG] Coupon generated:', coupon);
+              }
             } catch (e) {
               this._onerror(new Error(`Failed to generate interaction coupon: ${e}`));
             }

@@ -18,7 +18,12 @@ export function generateKeyPair(): { publicKey: string; privateKey: string } {
 export function hashPayload(payload: unknown): string {
   // Canonicalize JSON for consistent hashing
   const json = JSON.stringify(payload, Object.keys(payload as object).sort());
-  return createHash('sha256').update(json).digest('hex');
+  const hash = createHash('sha256').update(json).digest('hex');
+  if (typeof process !== 'undefined' && process.env.DEBUG_COUPON) {
+    console.log('[DEBUG] hashPayload input:', json);
+    console.log('[DEBUG] hashPayload output:', hash);
+  }
+  return hash;
 }
 
 /**
@@ -64,14 +69,41 @@ export function verifyInteractionCoupon(
   // Recompute hashes
   const expectedRequestHash = hashPayload(request);
   const expectedResponseHash = hashPayload(response);
+  if (typeof process !== 'undefined' && process.env.DEBUG_COUPON) {
+    console.log('[DEBUG] Coupon request_hash:', coupon.request_hash, 'expected:', expectedRequestHash);
+    console.log('[DEBUG] Coupon response_hash:', coupon.response_hash, 'expected:', expectedResponseHash);
+  }
   if (
     coupon.request_hash !== expectedRequestHash ||
     coupon.response_hash !== expectedResponseHash
   ) {
+    if (typeof process !== 'undefined' && process.env.DEBUG_COUPON) {
+      if (coupon.request_hash !== expectedRequestHash) {
+        console.log('[DEBUG] Request hash mismatch!');
+        console.log('[DEBUG] Coupon request_hash:', coupon.request_hash, 'expected:', expectedRequestHash);
+      }
+      if (coupon.response_hash !== expectedResponseHash) {
+        console.log('[DEBUG] Response hash mismatch!');
+        console.log('[DEBUG] Coupon response_hash:', coupon.response_hash, 'expected:', expectedResponseHash);
+      }
+      const { signature, ...payload } = coupon;
+      const payloadStr = JSON.stringify(payload);
+      console.log('[DEBUG] Coupon payload for signature:', payloadStr);
+      console.log('[DEBUG] Coupon signature:', coupon.signature);
+      const sigResult = verifySignature(payloadStr, coupon.signature, publicKeyPem);
+      console.log('[DEBUG] Signature verification result:', sigResult);
+    }
     return false;
   }
   // Recreate the payload for signature verification
   const { signature, ...payload } = coupon;
   const payloadStr = JSON.stringify(payload);
+  if (typeof process !== 'undefined' && process.env.DEBUG_COUPON) {
+    console.log('[DEBUG] Coupon payload for signature:', payloadStr);
+    console.log('[DEBUG] Coupon signature:', signature);
+    const sigResult = verifySignature(payloadStr, signature, publicKeyPem);
+    console.log('[DEBUG] Signature verification result:', sigResult);
+    return sigResult;
+  }
   return verifySignature(payloadStr, signature, publicKeyPem);
 } 
